@@ -1,0 +1,41 @@
+const store = {
+  usersByEmail: new Map(),
+  usersByWallet: new Map(),
+  sessions: new Map(),
+};
+
+function getUserByEmail(email) {
+  return store.usersByEmail.get(email.toLowerCase()) || null;
+}
+
+function upsertUser(email, patch) {
+  const key = email.toLowerCase();
+  const existing = store.usersByEmail.get(key) || {
+    email: key,
+    verified: false,
+    otp: null,
+    otpExpiresAt: null,
+    walletAddress: null,
+    walletNonce: null,
+    approved: false,
+  };
+  const next = { ...existing, ...patch };
+  store.usersByEmail.set(key, next);
+  if (next.walletAddress) {
+    store.usersByWallet.set(next.walletAddress.toLowerCase(), key);
+  }
+  return next;
+}
+
+function getUserByWallet(walletAddress) {
+  const email = store.usersByWallet.get(walletAddress.toLowerCase());
+  if (!email) return null;
+  return getUserByEmail(email);
+}
+
+module.exports = {
+  store,
+  getUserByEmail,
+  upsertUser,
+  getUserByWallet,
+};

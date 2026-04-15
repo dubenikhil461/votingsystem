@@ -1,0 +1,66 @@
+.app {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.card {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+input {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: white;
+}
+
+button {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: #2563eb;
+  border: 0;
+  color: white;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #4b5563;
+  cursor: not-allowed;
+}
+
+.message {
+  color: #93c5fd;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.candidate {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
