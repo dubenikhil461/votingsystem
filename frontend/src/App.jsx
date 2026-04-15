@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import "./App.css";
 import {
   fetchStatus,
@@ -17,6 +17,12 @@ import {
   getSelectedAddress,
   getVotingContractWithSigner,
 } from "./services/contract";
+import PageLayout from "./components/PageLayout";
+import VoterOtpModule from "./components/VoterOtpModule";
+import WalletLinkModule from "./components/WalletLinkModule";
+import VoterVoteModule from "./components/VoterVoteModule";
+import AdminModule from "./components/AdminModule";
+import Home from "./components/Home";
 
 const ELECTION_LABELS = ["NotStarted", "Ongoing", "Ended"];
 const STORAGE_KEYS = {
@@ -118,10 +124,10 @@ function App() {
   }
 
   function withUiHandling(fn) {
-    return async () => {
+    return async (...args) => {
       setLoading(true);
       try {
-        await fn();
+        await fn(...args);
       } catch (error) {
         setMessage(mapErrorToMessage(error));
       } finally {
@@ -168,7 +174,7 @@ function App() {
     localStorage.setItem(STORAGE_KEYS.ADMIN_TOKEN, data.token);
     setAdminToken(data.token);
     setMessage("Admin logged in");
-    navigate("/admin/panel");
+    navigate("/admin");
   }
 
   async function onApproveWallet() {
@@ -213,204 +219,96 @@ function App() {
     localStorage.removeItem(STORAGE_KEYS.ADMIN_TOKEN);
     setAdminToken("");
     setMessage("Admin logged out");
-    navigate("/admin/login");
+    navigate("/admin");
   }
 
-  function Layout({ title, children }) {
-    return (
-      <main className="app">
-        <header className="header">
-          <div>
-            <h1>{title}</h1>
-            <p className="subtle">QuickVote - OTP + Wallet + Blockchain voting</p>
-          </div>
-          <nav className="nav">
-            <Link to="/voter/login">Voter Login</Link>
-            <Link to="/voter/vote">Voter Vote</Link>
-            <Link to="/admin/login">Admin Login</Link>
-            <Link to="/admin/panel">Admin Panel</Link>
-          </nav>
-        </header>
-        {message && <p className="message">{message}</p>}
-        {children}
-      </main>
-    );
-  }
+  const electionLabel = ELECTION_LABELS[electionState] || "Unknown";
+  const hasWalletLinked = !!status?.walletAddress;
+  const voterReadyForVote = !!userToken && hasWalletLinked;
 
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/voter/login" replace />} />
+      <Route path="/home" element={<Home />} />
 
       <Route
         path="/voter/login"
         element={
-          <Layout title="Voter Login">
-            <section className="card">
-              <h2>Step 1: Verify with OTP</h2>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Voter email"
-                autoComplete="off"
+          <PageLayout title="Voter Onboarding" message={message}>
+            {!userToken ? (
+              <VoterOtpModule
+                email={email}
+                setEmail={setEmail}
+                aadhaarNumber={aadhaarNumber}
+                setAadhaarNumber={setAadhaarNumber}
+                otp={otp}
+                setOtp={setOtp}
+                loading={loading}
+                onRequestOtp={withUiHandling(onRequestOtp)}
+                onVerifyOtp={withUiHandling(onVerifyOtp)}
+                onClearSession={logoutUser}
               />
-              <input
-                value={aadhaarNumber}
-                onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                placeholder="Aadhaar number (12 digits)"
-                autoComplete="off"
+            ) : hasWalletLinked ? (
+              <Navigate to="/voter/vote" replace />
+            ) : (
+              <WalletLinkModule
+                loading={loading}
+                onConnectWallet={withUiHandling(onConnectWallet)}
+                onLinkWallet={withUiHandling(onLinkWallet)}
+                walletAddress={walletAddress}
+                status={status}
               />
-              <div className="row">
-                <button
-                  disabled={loading || !email || aadhaarNumber.length !== 12}
-                  onClick={withUiHandling(onRequestOtp)}
-                >
-                  Request OTP
-                </button>
-              </div>
-              <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Enter OTP" />
-              <div className="row">
-                <button
-                  disabled={loading || !email || !otp || aadhaarNumber.length !== 12}
-                  onClick={withUiHandling(onVerifyOtp)}
-                >
-                  Verify OTP
-                </button>
-                <button className="secondary" onClick={logoutUser}>Clear Voter Session</button>
-              </div>
-            </section>
-            <section className="card">
-              <h2>Step 2: Link Wallet</h2>
-              {!userToken ? (
-                <p className="subtle">Complete OTP verification first to enable MetaMask linking.</p>
-              ) : (
-                <>
-                  <div className="row">
-                    <button disabled={loading} onClick={withUiHandling(onConnectWallet)}>Connect MetaMask</button>
-                    <button disabled={loading || !userToken} onClick={withUiHandling(onLinkWallet)}>
-                      Link Wallet via Signed Nonce
-                    </button>
-                  </div>
-                  <p>Connected wallet: {walletAddress || "Not connected"}</p>
-                  <p>
-                    Status:{" "}
-                    {status
-                      ? `${status.verified ? "Verified" : "Not verified"} / ${
-                          status.approved ? "Approved" : "Not approved"
-                        }`
-                      : "No profile"}
-                  </p>
-                  {status?.voterId && <p>Voter ID: {status.voterId}</p>}
-                  {status?.aadhaarLast4 && <p>Aadhaar: XXXX XXXX {status.aadhaarLast4}</p>}
-                  <p className="subtle">After linking wallet, you will be redirected to Voter Vote page.</p>
-                </>
-              )}
-            </section>
-          </Layout>
+            )}
+          </PageLayout>
         }
       />
 
       <Route
         path="/voter/vote"
         element={
-          !userToken ? (
+          !voterReadyForVote ? (
             <Navigate to="/voter/login" replace />
           ) : (
-          <Layout title="Voter Voting Booth">
-            <section className="card">
-              <h2>Live Election</h2>
-              <p>Election state: {ELECTION_LABELS[electionState] || "Unknown"}</p>
-              <p>
-                Wallet status:{" "}
-                {status
-                  ? `${status.verified ? "Verified" : "Not verified"} / ${
-                      status.approved ? "Approved" : "Not approved"
-                    }`
-                  : "No profile"}
-              </p>
-            </section>
-            <section className="card">
-              <h2>Candidates</h2>
-              <div className="candidates">
-                {candidates.map((candidate, index) => (
-                  <div className="candidate" key={`${candidate.name}-${index}`}>
-                    <h3>{candidate.name}</h3>
-                    <p>Votes: {candidate.voteCount.toString()}</p>
-                    <button disabled={!canVote || loading} onClick={withUiHandling(() => onVote(index))}>
-                      Vote
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </Layout>
+            <PageLayout title="Voter Voting Booth" message={message}>
+              <VoterVoteModule
+                electionLabel={electionLabel}
+                status={status}
+                candidates={candidates}
+                canVote={canVote}
+                loading={loading}
+                onVote={withUiHandling((index) => onVote(index))}
+              />
+            </PageLayout>
           )
         }
       />
 
       <Route
-        path="/admin/login"
+        path="/admin"
         element={
-          <Layout title="Admin Login">
-            <section className="card">
-              <h2>Admin Authentication</h2>
-              <input value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} placeholder="Admin username" />
-              <input
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Admin password"
-                type="password"
-              />
-              <div className="row">
-                <button disabled={loading} onClick={withUiHandling(onAdminLogin)}>Login</button>
-                <button className="secondary" onClick={logoutAdmin}>Clear Admin Session</button>
-              </div>
-            </section>
-          </Layout>
+          <PageLayout title="Admin Module" message={message}>
+            <AdminModule
+              isLoggedIn={!!adminToken}
+              loading={loading}
+              adminUsername={adminUsername}
+              setAdminUsername={setAdminUsername}
+              adminPassword={adminPassword}
+              setAdminPassword={setAdminPassword}
+              onAdminLogin={withUiHandling(onAdminLogin)}
+              onAdminLogout={logoutAdmin}
+              electionLabel={electionLabel}
+              onStartElection={withUiHandling(onStartElection)}
+              onEndElection={withUiHandling(onEndElection)}
+              adminEmailToApprove={adminEmailToApprove}
+              setAdminEmailToApprove={setAdminEmailToApprove}
+              onApproveWallet={withUiHandling(onApproveWallet)}
+              candidates={candidates}
+            />
+          </PageLayout>
         }
       />
-
-      <Route
-        path="/admin/panel"
-        element={
-          <Layout title="Admin Control Panel">
-            <section className="card">
-              <h2>Election Controls</h2>
-              <p>Election state: {ELECTION_LABELS[electionState] || "Unknown"}</p>
-              <div className="row">
-                <button disabled={loading || !adminToken} onClick={withUiHandling(onStartElection)}>Start Election</button>
-                <button disabled={loading || !adminToken} onClick={withUiHandling(onEndElection)}>End Election</button>
-              </div>
-              <p className="subtle">Use admin/deployer wallet in MetaMask for start/end actions.</p>
-            </section>
-            <section className="card">
-              <h2>Approve Voters (Before Start)</h2>
-              <input
-                value={adminEmailToApprove}
-                onChange={(e) => setAdminEmailToApprove(e.target.value)}
-                placeholder="Voter email to approve"
-              />
-              <button
-                disabled={loading || !adminToken || !adminEmailToApprove}
-                onClick={withUiHandling(onApproveWallet)}
-              >
-                Approve + Whitelist Wallet
-              </button>
-            </section>
-            <section className="card">
-              <h2>Live Candidate Count</h2>
-              <div className="candidates">
-                {candidates.map((candidate, index) => (
-                  <div className="candidate" key={`${candidate.name}-${index}`}>
-                    <h3>{candidate.name}</h3>
-                    <p>Votes: {candidate.voteCount.toString()}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </Layout>
-        }
-      />
+      <Route path="/admin/login" element={<Navigate to="/admin" replace />} />
+      <Route path="/admin/panel" element={<Navigate to="/admin" replace />} />
     </Routes>
   );
 }
