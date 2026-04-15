@@ -1,0 +1,36 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_19-0bc7f7ed80b402e489f16078ce55021442b3981c",
+  "solcVersion": "0.8.19",
+  "solcLongVersion": "0.8.19+commit.7dd6d404",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/Voting.sol": "project/contracts/Voting.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "paris",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/Voting.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.19;\n\ncontract Voting {\n    address public admin;\n\n    enum ElectionState {\n        NotStarted,\n        Ongoing,\n        Ended\n    }\n\n    struct Candidate {\n        string name;\n        uint256 voteCount;\n    }\n\n    ElectionState public state;\n    Candidate[] public candidates;\n    mapping(address => bool) public isWhitelisted;\n    mapping(address => bool) public hasVoted;\n\n    event CandidateAdded(uint256 indexed index, string name);\n    event VoterWhitelisted(address indexed voter);\n    event ElectionStarted();\n    event VoteCast(address indexed voter, uint256 indexed candidateIndex);\n    event ElectionEnded();\n\n    modifier onlyAdmin() {\n        require(msg.sender == admin, \"Only admin\");\n        _;\n    }\n\n    modifier onlyBeforeStart() {\n        require(state == ElectionState.NotStarted, \"Election already started\");\n        _;\n    }\n\n    modifier onlyDuringElection() {\n        require(state == ElectionState.Ongoing, \"Election is not ongoing\");\n        _;\n    }\n\n    constructor() {\n        admin = msg.sender;\n        state = ElectionState.NotStarted;\n    }\n\n    function addCandidate(string memory name) external onlyAdmin onlyBeforeStart {\n        require(bytes(name).length > 0, \"Name required\");\n        candidates.push(Candidate({name: name, voteCount: 0}));\n        emit CandidateAdded(candidates.length - 1, name);\n    }\n\n    function whitelistVoter(address voter) external onlyAdmin onlyBeforeStart {\n        require(voter != address(0), \"Invalid voter\");\n        isWhitelisted[voter] = true;\n        emit VoterWhitelisted(voter);\n    }\n\n    function startElection() external onlyAdmin onlyBeforeStart {\n        require(candidates.length > 1, \"Add at least 2 candidates\");\n        state = ElectionState.Ongoing;\n        emit ElectionStarted();\n    }\n\n    function vote(uint256 candidateIndex) external onlyDuringElection {\n        require(isWhitelisted[msg.sender], \"Not whitelisted\");\n        require(!hasVoted[msg.sender], \"Already voted\");\n        require(candidateIndex < candidates.length, \"Invalid candidate\");\n\n        hasVoted[msg.sender] = true;\n        candidates[candidateIndex].voteCount += 1;\n        emit VoteCast(msg.sender, candidateIndex);\n    }\n\n    function endElection() external onlyAdmin onlyDuringElection {\n        state = ElectionState.Ended;\n        emit ElectionEnded();\n    }\n\n    function getCandidate(uint256 index) external view returns (string memory name, uint256 voteCount) {\n        require(index < candidates.length, \"Invalid candidate\");\n        Candidate storage candidate = candidates[index];\n        return (candidate.name, candidate.voteCount);\n    }\n\n    function getAllCandidates() external view returns (Candidate[] memory) {\n        return candidates;\n    }\n\n    function getWinner() external view returns (string memory winnerName, uint256 winnerVotes) {\n        require(state == ElectionState.Ended, \"Election not ended\");\n        require(candidates.length > 0, \"No candidates\");\n\n        uint256 maxVotes = 0;\n        uint256 winnerIndex = 0;\n        for (uint256 i = 0; i < candidates.length; i++) {\n            if (candidates[i].voteCount > maxVotes) {\n                maxVotes = candidates[i].voteCount;\n                winnerIndex = i;\n            }\n        }\n        return (candidates[winnerIndex].name, candidates[winnerIndex].voteCount);\n    }\n}\n"
+      }
+    }
+  }
+}

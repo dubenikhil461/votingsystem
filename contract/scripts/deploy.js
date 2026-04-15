@@ -1,10 +1,12 @@
+import { network } from "hardhat";
+
 async function main() {
-  const hre = await import("hardhat");
+  const { ethers } = await network.connect("ganache");
   const candidateNames = process.env.CANDIDATES
     ? process.env.CANDIDATES.split(",").map((name) => name.trim()).filter(Boolean)
     : ["Alice", "Bob"];
 
-  const Voting = await hre.ethers.getContractFactory("Voting");
+  const Voting = await ethers.getContractFactory("Voting");
   const voting = await Voting.deploy();
   await voting.waitForDeployment();
 

@@ -33,6 +33,12 @@ router.post("/link", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Signature does not match wallet address" });
   }
 
+  if (req.user.walletAddress && req.user.walletAddress !== address.toLowerCase()) {
+    return res.status(409).json({
+      error: "Wallet already linked for this voter. Admin reset is required to change wallet.",
+    });
+  }
+
   const updated = upsertUser(req.user.email, {
     walletAddress: address.toLowerCase(),
     walletNonce: null,
@@ -46,7 +52,9 @@ router.get("/me/status", requireAuth, (req, res) => {
 
 function serializeUser(user) {
   return {
+    voterId: user.voterId,
     email: user.email,
+    aadhaarLast4: user.aadhaarLast4,
     verified: user.verified,
     walletAddress: user.walletAddress,
     approved: user.approved,

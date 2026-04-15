@@ -6,13 +6,13 @@ function headers(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function requestOtp(email) {
-  const { data } = await axios.post(`${API_BASE}/auth/request-otp`, { email });
+export async function requestOtp(email, aadhaarNumber) {
+  const { data } = await axios.post(`${API_BASE}/auth/request-otp`, { email, aadhaarNumber });
   return data;
 }
 
-export async function verifyOtp(email, otp) {
-  const { data } = await axios.post(`${API_BASE}/auth/verify-otp`, { email, otp });
+export async function verifyOtp(email, otp, aadhaarNumber) {
+  const { data } = await axios.post(`${API_BASE}/auth/verify-otp`, { email, otp, aadhaarNumber });
   return data;
 }
 

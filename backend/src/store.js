@@ -1,6 +1,7 @@
 const store = {
   usersByEmail: new Map(),
   usersByWallet: new Map(),
+  usersByIdentityHash: new Map(),
   sessions: new Map(),
 };
 
@@ -12,6 +13,9 @@ function upsertUser(email, patch) {
   const key = email.toLowerCase();
   const existing = store.usersByEmail.get(key) || {
     email: key,
+    voterId: null,
+    identityHash: null,
+    aadhaarLast4: null,
     verified: false,
     otp: null,
     otpExpiresAt: null,
@@ -23,6 +27,9 @@ function upsertUser(email, patch) {
   store.usersByEmail.set(key, next);
   if (next.walletAddress) {
     store.usersByWallet.set(next.walletAddress.toLowerCase(), key);
+  }
+  if (next.identityHash) {
+    store.usersByIdentityHash.set(next.identityHash, key);
   }
   return next;
 }

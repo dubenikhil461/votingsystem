@@ -17,6 +17,9 @@ router.post("/approve-wallet", requireAdmin, async (req, res) => {
   if (!user.walletAddress) {
     return res.status(400).json({ error: "User has not linked wallet" });
   }
+  if (user.approved) {
+    return res.status(409).json({ error: "Voter is already approved for this election cycle" });
+  }
 
   const receipt = await whitelistWallet(user.walletAddress);
   const updated = upsertUser(email, { approved: true });
